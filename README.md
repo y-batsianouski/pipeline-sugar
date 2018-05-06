@@ -1,11 +1,11 @@
 # pipeline-sugar
 
-Pipeline shared library which provides declarative syntax sugar for scripted pipeline, but doesn't limit usage of scripted pipeline directives
+Pipeline [shared library](https://jenkins.io/doc/book/pipeline/shared-libraries/) which provides declarative syntax sugar for scripted pipeline, but doesn't limit usage of scripted pipeline directives
 
 ## Example usage
 
 ```groovy
-@Library("pipeline-sugar")_
+@Library("pipeline-sugar") _
 block {
 
   // Same as 'parameters' from 'properties' pipeline step
