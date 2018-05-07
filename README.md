@@ -60,6 +60,9 @@ block {
 
   // Steps could contain any scripted pipeline code, even another blocks
   steps {
+    // This library doesn't checkout for you. So you should do it explicitly
+    checkout scm
+    
     // Block could include another block
     // If block name provided, all block steps will be wrapped into pipeline stage
     block("tests") {
