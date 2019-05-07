@@ -1,7 +1,5 @@
 package org.ybatsianouski.scriptpipeline
 
-import org.ybatsianouski.scriptpipeline.ScriptpipelineDelegate
-
 class Scriptpipeline implements Serializable {
   private delegate
   private p
