@@ -55,9 +55,9 @@ class Agent implements Serializable {
     public podTemplate = false
     public type        = TYPE_NONE
     Config(pipeline) {
-      this.p        = this.pipeline
+      this.p        = pipeline
       this.pipeline = pipeline
-      this.node     = new Node(this.pipeline)
+      this.node     = new Node(pipeline)
     }
     
     def label(String l) {
@@ -105,7 +105,7 @@ class Agent implements Serializable {
       public label = ""
       public customWorkspace = false
       Node(pipeline) {
-        this.p        = this.pipeline
+        this.p        = pipeline
         this.pipeline = pipeline
       }
       
