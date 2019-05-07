@@ -19,26 +19,28 @@ class Scriptpipeline implements Serializable {
     body.resolveStrategy = Closure.DELEGATE_FIRST
     body.delegate = this.config
     body.call()
-    pipeline.properties(config.options + [pipeline.parameters(config.parameters)])
+    pipeline.properties(config.options.options + [pipeline.parameters(config.parameters)])
     config.agent.run {
       if (config.agent.config.type != config.agent.config.TYPE_NONE) {
-        wrap_steps['steps'] = []
-        wrap_steps['steps'] << config.steps
         if (config.options.skipDefaultCheckout != true) {
-          wrap_steps['steps'] << {
+          wrap_steps['checkoutScm'] = {
             if (config.options.checkoutToSubdirectory != ".") {
               pipeline.dir(config.options.checkoutToSubdirectory) {
-                pipeline.checkout scm
+                pipeline.checkout pipeline.scm
               }
             } else {
-              pipeline.checkout scm
+              pipeline.checkout pipeline.scm
             }
-            wrap_steps['steps'].last()
+            config.steps.call()
           }
+        } else {
+          wrap_steps['checkoutScm'] = config.steps
         }
-        wrap_steps['wrappers'] = [wrap_steps['steps'].last()]
-        config.options.wrappers.eachWithIndex { v, k -> wrap_steps['wrappers'] << { wrap(v, wrap_steps['wrappers'][k]) } }
-        wrap_steps['wrappers'].last().call()
+        wrap_steps['steps'] = [wrap_steps['checkoutScm']]
+        config.options.wrappers.eachWithIndex { v, k -> wrap_steps['steps'] << { pipeline.wrap(v, wrap_steps['steps'][k]) } }
+        wrap_steps['wrapLast'] = wrap_steps['steps'].last()
+        
+        wrap_steps['wrapLast'].call()
       } else {
         config.steps.call()
       }
@@ -55,8 +57,8 @@ class Scriptpipeline implements Serializable {
     /* need to be able to specify agent any in pipeline */
     private any  = { node { label "" } }
     private parameters
-    private options
     
+    public options
     public agent      = false
     public steps      = { it -> false }
     Config(pipeline) {
@@ -101,10 +103,6 @@ class Scriptpipeline implements Serializable {
       body.resolveStrategy = Closure.DELEGATE_FIRST
       body.delegate = options
       body.call()
-    }
-    
-    def getOptions() {
-      options.options
     }
     
     class Parameters implements Serializable {
@@ -171,7 +169,7 @@ class Scriptpipeline implements Serializable {
       }
       
       def skipDefaultCheckout(Boolean flag) {
-        skipDefaultCheckout flag
+        skipDefaultCheckout = flag
       }
       
       def skipStagesAfterUnstable() {
