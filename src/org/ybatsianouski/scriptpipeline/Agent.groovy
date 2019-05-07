@@ -6,7 +6,7 @@ class Agent implements Serializable {
   private p
   private pipeline
   public config = {}
-  Agent(pipeline, Closure body) {
+  Agent(pipeline, body) {
     this.config   = new Config(pipeline)
     this.p        = this.pipeline
     this.pipeline = pipeline
@@ -15,70 +15,106 @@ class Agent implements Serializable {
   
   def run(Closure steps) {
     body.resolveStrategy = Closure.DELEGATE_FIRST
-    body.delegate = this.config
+    body.delegate = config
     body.call()
     
-    steps.resolveStrategy = Closure.DELEGATE_FIRST
-    steps.delegate = this.pipeline
-    
     switch(config.type) {
-      case TYPE_LABEL:
-        pipeline.node(config) {
-          steps()
-        }
-        break
-      case TYPE_POD_TEMPLATE:
-        parent.podTemplate(config) {
-          parent.node(config['label']) {
-            steps()
+      case Config.TYPE_NODE:
+        pipeline.node(config.node.label) {
+          if (config.node.customWorkspace) {
+            pipeline.ws(config.node.customWorkspace) {
+              steps.call()
+            }
+          } else {
+            steps.call()
           }
         }
         break
-      case TYPE_NONE:
-        body()
+      case Config.TYPE_POD_TEMPLATE:
+        pipelinet.podTemplate(config.podTemplate) {
+          parent.node(config.podTemplate['label']) {
+            steps.call()
+          }
+        }
+        break
+      case Config.TYPE_NONE:
+        steps.call()
         break
     }
   }
   
   class Config implements Serializable {
-    static final String TYPE_LABEL        = 'label'
+    static final String TYPE_NODE         = 'node'
     static final String TYPE_NONE         = 'none'
     static final String TYPE_POD_TEMPLATE = 'podTemplate'
     
+    private configured  = false
     private p
     private pipeline
-    public config     = false
-    public configured = false
-    public type       = TYPE_NONE
+    public node
+    public podTemplate = false
+    public type        = TYPE_NONE
     Config(pipeline) {
       this.p        = this.pipeline
       this.pipeline = pipeline
+      this.node     = new Node(this.pipeline)
     }
     
-    def label(String label) {
-      if (configured == false) {
-        config = label
-        type   = Agent.TYPE_LABEL
-      } else {
-        throw new RuntimeException("ERROR: Couldn't configure multiple agents")
-      }
+    def label(String l) {
+      node() { label l }
     }
     
-    def podTemplate(Map conf) {
+    def podTemplate(Map podTemplate) {
       if (configured == false) {
-        config = conf
-        type   = Agent.TYPE_POD_TEMPLATE
+        podTemplate = podTemplate
+        type   = TYPE_POD_TEMPLATE
+        configured = true
       } else {
-        throw new RuntimeException("ERROR: Couldn't configure multiple agents")
+        pipeline.error("Couldn't configure multiple agents")
       }
     }
     
     def none() {
       if (configured == false) {
-        config = {}
-        type   = Agent.TYPE_NONE
+        type   = TYPE_NONE
+        configured = true
       } else {
-        throw new RuntimeException("ERROR: Couldn't configure multiple agents")
+        pipeline.error("Couldn't configure multiple agents")
+      }
+    }
+    
+    def any() {
+      node() { label "" }
+    }
+    
+    def node(Closure body) {
+      if (configured == false) {
+        body.resolveStrategy = Closure.DELEGATE_FIRST
+        body.delegate = node
+        body.call()
+        type   = TYPE_NODE
+        configured = true
+      } else {
+        pipeline.error("Couldn't configure multiple agents")
+      }
+    }
+    
+    class Node implements Serializable {
+      private p
+      private pipeline
+      public label = ""
+      public customWorkspace = false
+      Node(pipeline) {
+        this.p        = this.pipeline
+        this.pipeline = pipeline
+      }
+      
+      def label(String l) {
+        label = l
+      }
+      
+      def customWorkspace(String ws) {
+        customWorkspace = ws
       }
     }
   }
