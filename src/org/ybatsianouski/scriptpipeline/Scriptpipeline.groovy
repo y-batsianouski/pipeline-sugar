@@ -7,6 +7,7 @@ class Scriptpipeline implements Serializable {
   private p
   private pipeline
   private wrap_steps = [:]
+  private pipeline_properties
   public config = {}
   Scriptpipeline(pipeline, Closure body) {
     this.body     = body
@@ -19,7 +20,14 @@ class Scriptpipeline implements Serializable {
     body.resolveStrategy = Closure.DELEGATE_FIRST
     body.delegate = this.config
     body.call()
-    pipeline.properties(config.options.options + [pipeline.parameters(config.parameters)])
+    pipeline_properties = config.options.options
+    if (config.parameters.size() > 0) {
+      pipeline_properties << pipeline.parameters(config.parameters)
+    }
+    if (config.triggers.size() > 0) {
+      pipeline_properties << pipeline.pipelineTriggers(config.triggers)
+    }
+    pipeline.properties(pipeline_properties)
     config.agent.run {
       if (config.agent.config.type != config.agent.config.TYPE_NONE) {
         if (config.options.skipDefaultCheckout != true) {
@@ -57,6 +65,7 @@ class Scriptpipeline implements Serializable {
     /* need to be able to specify agent any in pipeline */
     private any  = { node { label "" } }
     private parameters
+    private triggers
     
     public options
     public agent      = false
@@ -66,7 +75,8 @@ class Scriptpipeline implements Serializable {
       this.p          = pipeline
       this.agent      = new Agent(pipeline, none)
       this.parameters = new Parameters(pipeline)
-      this.options = new Options(pipeline)
+      this.options    = new Options(pipeline)
+      this.triggers   = new Triggers(pipeline)
     }
     
     def steps(Closure body) {
@@ -103,6 +113,16 @@ class Scriptpipeline implements Serializable {
       body.resolveStrategy = Closure.DELEGATE_FIRST
       body.delegate = options
       body.call()
+    }
+    
+    def triggers(Closure body) {
+      body.resolveStrategy = Closure.DELEGATE_FIRST
+      body.delegate = triggers
+      body.call()
+    }
+    
+    def getTriggers() {
+      triggers.triggers
     }
     
     class Parameters implements Serializable {
@@ -202,6 +222,36 @@ class Scriptpipeline implements Serializable {
       
       def genericWrapper(conf) {
         wrappers << conf
+      }
+    }
+    
+    class Triggers implements Serializable {
+      private p
+      private pipeline
+      public triggers = []
+      Triggers(pipeline) {
+        this.p        = pipeline
+        this.pipeline = pipeline
+      }
+      
+      def cron(String expr) {
+        triggers << pipeline.cron(expr)
+      }
+      
+      def pollSCM(String expr) {
+        triggers << pipeline.pollSCM(expr)
+      }
+      
+      def upstream(conf) {
+        triggers << pipeline.upstream(conf)
+      }
+      
+      def githubPush() {
+        triggers << pipeline.githubPush()
+      }
+      
+      def generic(conf) {
+        triggers << conf
       }
     }
   }
